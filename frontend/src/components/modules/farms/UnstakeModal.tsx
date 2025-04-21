@@ -41,7 +41,7 @@ const UnStakeModal = ({
   );
 
   const onMaxClick = () => {
-    setAmount(formatWithoutTrailingZeros(staked));
+    setAmount(formatWithoutTrailingZeros(staked).replace(",", "."));
   };
 
   const unstakeTx = (amount: string, farmId: number): Transaction => {

@@ -40,7 +40,7 @@ const StakeModal = ({
   const [tokenMetadata, setTokenMetadata] = useState<any>(null);
 
   const onMaxClick = () => {
-    setAmount(formatWithoutTrailingZeros(balance));
+    setAmount(formatWithoutTrailingZeros(balance).replace(",", "."));
   };
 
   const checkUserStorageOnContract = async (): Promise<Transaction | null> => {

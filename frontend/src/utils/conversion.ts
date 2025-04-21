@@ -120,6 +120,6 @@ export const toPrecision = (
 
 export const formatWithoutTrailingZeros = (value: string): string => {
   if (!value) return "0";
-  if (!value.includes(".")) return value;
+  if (!value.includes(".") && !value.includes(",")) return value;
   return value.replace(/\.?0+$/, "").replace(/\.$/, "");
 };

@@ -219,7 +219,7 @@ const AddReward = ({
   }, [farm]);
 
   const onMaxClick = () => {
-    setAmount(formatWithoutTrailingZeros(balance));
+    setAmount(formatWithoutTrailingZeros(balance).replace(",", "."));
   };
 
   return (
