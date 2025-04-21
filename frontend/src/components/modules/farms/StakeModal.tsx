@@ -53,7 +53,7 @@ const StakeModal = ({
         args: { account_id: accountId },
       });
 
-      if (!storageCheck || new BigNumber(storageCheck).lt(new BigNumber(deposit))) {
+      if (!storageCheck || new BigNumber(storageCheck!.available ?? "0").lt(new BigNumber(deposit))) {
         let actions: FunctionCallAction[] = [
           {
             type: "FunctionCall",
