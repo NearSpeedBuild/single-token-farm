@@ -52,6 +52,12 @@ pub struct StakeInfoView {
     pub reward_tokens: Vec<AccountId>,
 }
 
+#[near(serializers=[json])]
+pub struct StorageBalanceView {
+    pub available: U128,
+    pub total: U128,
+}
+
 #[near]
 impl FarmingContract {
     pub fn list_farms(&self, from_index: u64, limit: u64) -> Vec<FarmView> {
@@ -147,5 +153,13 @@ impl FarmingContract {
             }
         }
         results
+    }
+    pub fn storage_balance_of(&self, account_id: AccountId) -> StorageBalanceView {
+        let storage_balance = self.storage_deposits.get(&account_id).unwrap_or(0);
+        // I guess the used storage is never tracked, so... It's always available?
+        StorageBalanceView {
+            available: U128(storage_balance),
+            total: U128(storage_balance),
+        }
     }
 }

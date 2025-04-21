@@ -15,23 +15,31 @@ This contract allows users to **stake** a single NEP-141 token and receive **one
 ---
 
 ## 2. Data Structures
-
-1. **FarmParams**  
+1. **FarmView**  
+   - `farm_id: u64` – The unique identifier of the farm.  
    - `staking_token: AccountId` – The token to stake.  
    - `reward_tokens: Vec<AccountId>` – List of tokens used to reward stakers.  
-   - `reward_per_session: Vec<u128>` – Amount of each reward token emitted per session.  
-   - `session_interval: u64` – Session length in nanoseconds.  
-   - `start_time: u64` – When distribution can begin (in nanoseconds).  
-   - `last_distribution: u64` – Last time distribution was updated.  
-   - `total_staked: u128` – Total staked amount in this farm.  
-   - `reward_per_share: Vec<u128>` – Tracks how many reward tokens have been distributed *per staked token* (for each reward token).  
-   - `lockup_period: u64` – A time lock in nanoseconds. Users cannot withdraw before this expires.
+   - `reward_per_session: Vec<U128>` – Amount of each reward token emitted per session.  
+   - `session_interval_sec: u64` – Session length in seconds.  
+   - `start_at_sec: u64` – When distribution can begin (in seconds).  
+   - `last_distribution_sec: u64` – Last time distribution was updated (in seconds).  
+   - `total_staked: U128` – Total staked amount in this farm.  
+   - `reward_per_share: Vec<U128>` – Tracks how many reward tokens have been distributed *per staked token*.  
+   - `lockup_period_sec: u64` – A time lock in seconds. Users cannot withdraw before this expires.  
+   - `remaining_reward: Vec<U128>` – Remaining rewards for each reward token.  
+   - `status: FarmStatus` – Current status of the farm.
 
-2. **StakeInfo**  
-   - `amount: u128` – How many tokens the user staked.  
-   - `lockup_end: u64` – The timestamp (nanoseconds) after which the user can withdraw.  
-   - `reward_debt: Vec<u128>` – A checkpoint for each reward token’s `reward_per_share`.  
-   - `accrued_rewards: Vec<u128>` – The user’s unclaimed rewards for each reward token.
+2. **StakeInfoView**  
+   - `farm_id: u64` – The farm this stake belongs to.  
+   - `amount: U128` – How many tokens the user staked.  
+   - `lockup_end_sec: u64` – The timestamp (seconds) after which the user can withdraw.  
+   - `reward_debt: Vec<U128>` – A checkpoint for each reward token's `reward_per_share`.  
+   - `accrued_rewards: Vec<U128>` – The user's unclaimed rewards for each reward token.  
+   - `reward_tokens: Vec<AccountId>` – List of reward tokens for this stake.
+
+3. **StorageBalanceView**  
+   - `available: U128` – Amount of storage deposit available for use.  
+   - `total: U128` – Total amount of storage deposit.
 
 ---
 

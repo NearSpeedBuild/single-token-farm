@@ -59,9 +59,7 @@ const StakeModal = ({
             type: "FunctionCall",
             params: {
               methodName: "storage_deposit",
-              args: {
-                registration_only: true,
-              },
+              args: {},
               gas,
               deposit,
             },
@@ -180,19 +178,19 @@ const StakeModal = ({
     let transactions: Transaction[] = [];
 
     let _shares = toNonDivisibleNumber(tokenMetadata.decimals, amount);
-    
+
     // Check and register user storage if needed
-    let userStorageTx = await checkUserStorageOnContract();
-    if (userStorageTx) {
-      transactions.push(userStorageTx);
+    let userStorageOnContractTx = await checkUserStorageOnContract();
+    if (userStorageOnContractTx) {
+      transactions.push(userStorageOnContractTx);
     }
-    
+
     // Check and register farm contract storage if needed
-    let farmStorageTx = await registerAccount(tokenMetadata.address);
-    if (farmStorageTx) {
-      transactions.push(farmStorageTx);
+    let contractStorageOnTokenTx = await registerAccount(tokenMetadata.address);
+    if (contractStorageOnTokenTx) {
+      transactions.push(contractStorageOnTokenTx);
     }
-    
+
     let stakingTx = stakeTx(tokenMetadata.address, _shares, farm?.farm_id);
     transactions.push(stakingTx);
 
