@@ -55,7 +55,7 @@ export const WalletSelectorContextProvider: React.FC<
 
     const wallet = await selector.wallet();
 
-    wallet.signOut();
+    await wallet.signOut();
   };
 
   const init = useCallback(async () => {
