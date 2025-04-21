@@ -191,7 +191,7 @@ const Farm = ({ farm }: { farm: FarmInfo }) => {
   return (
     <div
       onClick={() => navigate(`/farms/${farm?.farm_id}`)}
-      className="w-full bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] rounded-2xl p-6 cursor-pointer h-full flex flex-col 
+      className="w-full bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a] rounded-2xl p-2 sm:p-6 cursor-pointer h-full flex flex-col 
       hover:shadow-[0px_8px_32px_rgba(205,127,240,0.15)] transition-all duration-300 border border-[#3a3a3a]"
     >
       {/* Header Section */}
