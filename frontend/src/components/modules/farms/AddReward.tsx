@@ -113,9 +113,9 @@ const AddReward = ({
   const registerAccount = async (
     token: string,
   ): Promise<Transaction | null> => {
-    const gas = "300000000000000";
+    const gas = "30000000000000";
     const contract = accounts.SINGLE_FARM;
-    const deposit = utils.format.parseNearAmount("0.05") as string; // 0.1 NEAR deposit
+    const deposit = utils.format.parseNearAmount("0.00125") as string;
     try {
       const storageCheck = await viewFunction(provider, {
         contractId: token,

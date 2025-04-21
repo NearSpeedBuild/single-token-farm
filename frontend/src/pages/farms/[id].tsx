@@ -24,6 +24,7 @@ import TokenWithSymbol from "@/components/modules/farms/Token";
 import TokenIcon from "@/components/modules/farms/TokenIcon";
 import AddReward from "@/components/modules/farms/AddReward";
 import { getTokenMetadata, TokenMetadata } from "@/utils/tokens";
+import { utils } from "near-api-js";
 
 const RewardLeft = ({
   token,
@@ -256,6 +257,49 @@ const FarmDetails = () => {
     return new Date(seconds * 1000).toLocaleDateString();
   };
 
+  const checkStorageRegistered = async (
+    token: string
+  ): Promise<Transaction | null> => {
+    const gas = "30000000000000";
+    const deposit = utils.format.parseNearAmount("0.00125") as string;
+
+    try {
+      const storageCheck = await viewFunction(provider, {
+        contractId: token,
+        methodName: "storage_balance_of",
+        args: { account_id: accountId },
+      });
+
+      if (!storageCheck) {
+        let actions: FunctionCallAction[] = [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: "storage_deposit",
+              args: {
+                registration_only: true,
+              },
+              gas,
+              deposit,
+            },
+          },
+        ];
+        
+        let tx = {
+          signerId: accountId!,
+          receiverId: token,
+          actions: actions,
+        };
+
+        return tx;
+      }
+      return null;
+    } catch (err) {
+      console.error("Error checking storage:", err);
+      return null;
+    }
+  };
+
   const claimTx = (farmId: number): Transaction => {
     const contract = accounts.SINGLE_FARM;
     const gas = "300000000000000";
@@ -291,14 +335,33 @@ const FarmDetails = () => {
       toast.error("Please Connect Wallet");
       return;
     }
+    
     const allZero = myPower?.accrued_rewards.every((value) => value === "0");
     if (allZero) {
       toast.error("Rewards are not available.");
       return;
     }
+    
     let transactions: Transaction[] = [];
+    
+    // Check storage registration for each reward token
+    if (myPower?.reward_tokens?.length) {
+      for (let i = 0; i < myPower.reward_tokens.length; i++) {
+        // Only check tokens that have accrued rewards
+        if (myPower.accrued_rewards[i] !== "0") {
+          const token = myPower.reward_tokens[i];
+          const storageTx = await checkStorageRegistered(token);
+          if (storageTx) {
+            transactions.push(storageTx);
+          }
+        }
+      }
+    }
+    
+    // Add claim transaction
     let tx = claimTx(farm!.farm_id);
     transactions.push(tx);
+    
     try {
       await (
         await selector.wallet()
