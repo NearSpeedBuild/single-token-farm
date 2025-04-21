@@ -73,7 +73,7 @@ export const WalletSelectorContextProvider: React.FC<
         setupSender(),
         setupMeteorWalletApp({ contractId: contracts.SINGLE_FARM }),
         setupLedger(),
-        // @ts-ignore
+        // @ts-ignore something weird
         setupBitteWallet(),
       ],
     });

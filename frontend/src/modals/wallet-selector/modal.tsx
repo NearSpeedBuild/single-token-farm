@@ -40,7 +40,7 @@ export function WalletSelectorModal() {
       const wallet = await module.wallet();
 
       let signInParams: any = {
-        contractId: import.meta.env.VITE_NFT_STAKING_CONTRACT,
+        contractId: "",
         methodNames: [],
       };
 
