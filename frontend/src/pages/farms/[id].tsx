@@ -48,7 +48,6 @@ const RewardLeft = ({
   useEffect(() => {
     const getTokenInfo = async () => {
       try {
-        console.log("123");
         const metadata = await getTokenMetadata(provider, token);
         const readableAmount = toReadableNumber(decimals, amount);
         setFormattedAmount(formatNumberWithSuffix(Number(readableAmount)));
@@ -69,7 +68,6 @@ const RewardLeft = ({
             const secondsLeft = sessionsLeft.multipliedBy(sessionIntervalSec);
             const hoursLeft = secondsLeft.dividedBy(3600);
             const daysLeft = hoursLeft.dividedBy(24);
-            console.log(daysLeft.toString());
 
             // Format time remaining
             if (daysLeft.gte(7)) {
