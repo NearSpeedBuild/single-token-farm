@@ -147,7 +147,7 @@ function App() {
       />
       <footer style={{ textAlign: "center", padding: "1rem", fontSize: "0.9rem", color: "#B4A3A9" }}>
         Built by <a href="https://jumpdefi.xyz" target="_blank" rel="noopener noreferrer" style={{ color: "#AE6CC6", fontWeight: "bold", textDecoration: "none" }}>Trove Labs</a> for <a href="https://t.me/speedbuild" target="_blank" rel="noopener noreferrer" style={{ color: "#7070EE", fontWeight: "bold", textDecoration: "none" }}>SpeedBuild</a><br/>
-        <a href="https://github.com/SpeedBuild/single-token-farm" target="_blank" rel="noopener noreferrer" style={{ background: "linear-gradient(90deg, #AE6CC6 0%, #7070EE 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: "bold" }}>Fork me on GitHub</a>
+        <a href="https://github.com/NearSpeedBuild/single-token-farm" target="_blank" rel="noopener noreferrer" style={{ background: "linear-gradient(90deg, #AE6CC6 0%, #7070EE 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: "bold" }}>Fork me on GitHub</a>
       </footer>
     </Router>
   );
