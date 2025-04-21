@@ -28,7 +28,7 @@ let hasInitializedCache: Promise<void> | null = null;
 // IndexedDB setup
 const DB_NAME = "TokenMetadataDB";
 const STORE_NAME = "ft_metadata";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 async function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -39,9 +39,10 @@ async function openDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
+      if (db.objectStoreNames.contains(STORE_NAME)) {
+        db.deleteObjectStore(STORE_NAME);
       }
+      db.createObjectStore(STORE_NAME);
     };
   });
 }
