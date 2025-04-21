@@ -43,6 +43,45 @@ const StakeModal = ({
     setAmount(formatWithoutTrailingZeros(balance));
   };
 
+  const checkUserStorageOnContract = async (): Promise<Transaction | null> => {
+    const gas = "30000000000000";
+    const deposit = utils.format.parseNearAmount("0.03") as string;
+    try {
+      const storageCheck = await viewFunction(provider, {
+        contractId: accounts.SINGLE_FARM,
+        methodName: "storage_balance_of",
+        args: { account_id: accountId },
+      });
+
+      if (!storageCheck || new BigNumber(storageCheck).lt(new BigNumber(deposit))) {
+        let actions: FunctionCallAction[] = [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: "storage_deposit",
+              args: {
+                registration_only: true,
+              },
+              gas,
+              deposit,
+            },
+          },
+        ];
+        let tx = {
+          signerId: accountId!,
+          receiverId: accounts.SINGLE_FARM,
+          actions: actions,
+        };
+
+        return tx;
+      } else {
+        return null;
+      }
+    } catch (err) {
+      return null;
+    }
+  };
+
   const registerAccount = async (
     token: string,
   ): Promise<Transaction | null> => {
@@ -141,12 +180,21 @@ const StakeModal = ({
     let transactions: Transaction[] = [];
 
     let _shares = toNonDivisibleNumber(tokenMetadata.decimals, amount);
-    let tx = await registerAccount(tokenMetadata.address);
-    if (tx) {
-      transactions.push(tx);
+    
+    // Check and register user storage if needed
+    let userStorageTx = await checkUserStorageOnContract();
+    if (userStorageTx) {
+      transactions.push(userStorageTx);
     }
-    let tx3 = stakeTx(tokenMetadata.address, _shares, farm?.farm_id);
-    transactions.push(tx3);
+    
+    // Check and register farm contract storage if needed
+    let farmStorageTx = await registerAccount(tokenMetadata.address);
+    if (farmStorageTx) {
+      transactions.push(farmStorageTx);
+    }
+    
+    let stakingTx = stakeTx(tokenMetadata.address, _shares, farm?.farm_id);
+    transactions.push(stakingTx);
 
     try {
       await (

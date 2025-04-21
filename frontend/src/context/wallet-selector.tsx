@@ -20,6 +20,7 @@ import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
 import { setupMeteorWalletApp } from "@near-wallet-selector/meteor-wallet-app";
 import { setupLedger } from "@near-wallet-selector/ledger";
 import { setupHotWallet } from "@near-wallet-selector/hot-wallet";
+import { accounts as contracts } from "@/utils/account-ids";
 
 interface WalletSelectorContextValue {
   selector: WalletSelector;
@@ -70,7 +71,7 @@ export const WalletSelectorContextProvider: React.FC<
         setupHotWallet(),
         // setupNightly(), freezes the page for a few seconds before load
         setupSender(),
-        setupMeteorWalletApp({ contractId: "" }),
+        setupMeteorWalletApp({ contractId: contracts.SINGLE_FARM }),
         setupLedger(),
         // @ts-ignore
         setupBitteWallet(),
