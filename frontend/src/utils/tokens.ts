@@ -14,7 +14,7 @@ export interface TokenMetadata {
   icon: string | null;
   name: string;
   price_usd?: string;
-  has_icon: boolean;
+  hasIcon: boolean;
   address: string;
   reputation: "Spam" | "Unknown" | "NotFake" | "Reputable";
   volume_usd_24h?: string;
@@ -23,12 +23,12 @@ export interface TokenMetadata {
 
 // Memory cache for fast access
 const memoryCache: { [tokenAddress: string]: TokenMetadata } = {};
-let hasInitializedCache = false;
+let hasInitializedCache: Promise<void> | null = null;
 
 // IndexedDB setup
 const DB_NAME = "TokenMetadataDB";
 const STORE_NAME = "ft_metadata";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 async function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -141,51 +141,55 @@ async function fetchFromRPC(
   return {
     ...cachedData,
     ...metadata,
-    has_icon: true,
+    hasIcon: true,
   };
 }
 
 export async function initializeMetadataCache() {
-  if (hasInitializedCache) return;
-  hasInitializedCache = true;
-
-  try {
-    const isTestnet = nearConfigs.networkId === "testnet";
-    const pricesUrl = `https://prices${isTestnet ? "-testnet" : ""}.intear.tech/tokens`;
-    const data = await (await fetch(pricesUrl)).json();
-
-    // Process and save each token's metadata to both caches
-    const savePromises = Object.entries(data).map(
-      async ([address, tokenData]: [string, any]) => {
-        if (tokenData.metadata && !tokenData.deleted) {
-          const metadata = {
-            ...tokenData.metadata,
-            price_usd: tokenData.price_usd,
-            has_icon: false,
-            address: address,
-            reputation: tokenData.reputation,
-            volume_usd_24h: tokenData.volume_usd_24h,
-          };
-          if (!(await getFromCache(address))) {
-            await saveToCache(address, metadata);
-          }
-        }
-      },
-    );
-
-    await Promise.all(savePromises);
-  } catch (error) {
-    console.error(
-      "Failed to initialize metadata cache from prices API:",
-      error,
-    );
+  if (hasInitializedCache) {
+    return await hasInitializedCache;
   }
+  hasInitializedCache = new Promise(async (resolve) => {
+    try {
+      const isTestnet = nearConfigs.networkId === "testnet";
+      const pricesUrl = `https://prices${isTestnet ? "-testnet" : ""}.intear.tech/tokens`;
+      const data = await (await fetch(pricesUrl)).json();
+
+      // Process and save each token's metadata to both caches
+      const savePromises = Object.entries(data).map(
+        async ([address, tokenData]: [string, any]) => {
+          if (tokenData.metadata && !tokenData.deleted) {
+            const metadata = {
+              ...tokenData.metadata,
+              price_usd: tokenData.price_usd,
+              has_icon: false,
+              address: address,
+              reputation: tokenData.reputation,
+              volume_usd_24h: tokenData.volume_usd_24h,
+            };
+            if (!(await getFromCache(address))) {
+              await saveToCache(address, metadata);
+            }
+          }
+        },
+      );
+
+      await Promise.all(savePromises);
+      resolve();
+    } catch (error) {
+      console.error(
+        "Failed to initialize metadata cache from prices API:",
+        error,
+      );
+      resolve();
+    }
+  })
 }
 
 export async function getTokenMetadata(
   provider: any,
   tokenAddress: string,
-  needs_icon: boolean = false,
+  needsIcon: boolean = false,
 ): Promise<TokenMetadata> {
   if (!tokenAddress) {
     throw new Error("Token address is required");
@@ -195,7 +199,7 @@ export async function getTokenMetadata(
   try {
     // Check cache first
     const cachedMetadata = await getFromCache(tokenAddress);
-    if (cachedMetadata && (!needs_icon || cachedMetadata.has_icon)) {
+    if (cachedMetadata && (!needsIcon || cachedMetadata.hasIcon)) {
       return validate(cachedMetadata);
     }
 

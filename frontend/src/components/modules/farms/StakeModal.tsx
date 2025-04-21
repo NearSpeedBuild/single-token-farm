@@ -23,6 +23,7 @@ import { Transaction, FunctionCallAction } from "@near-wallet-selector/core";
 import { getTokenBalance } from "@/utils/balances";
 import { getTokenMetadata, TokenMetadata } from "@/utils/tokens";
 import TokenIcon from "./TokenIcon";
+import { FarmInfo } from "@/hooks/modules/farms/hooks";
 
 const StakeModal = ({
   open,
@@ -30,14 +31,14 @@ const StakeModal = ({
   farm,
 }: {
   open: boolean;
-  farm: any;
+  farm: FarmInfo;
   setOpen: (open: boolean) => void;
 }) => {
   const { accountId, selector } = useWalletSelector();
   const { provider, account } = useRPC();
   const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState("0");
-  const [tokenMetadata, setTokenMetadata] = useState<any>(null);
+  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
 
   const onMaxClick = () => {
     setAmount(formatWithoutTrailingZeros(balance).replace(",", "."));
@@ -126,7 +127,7 @@ const StakeModal = ({
   const stakeTx = (
     token: string,
     amount: string,
-    farmId: string,
+    farmId: number,
   ): Transaction => {
     const contract = accounts.SINGLE_FARM;
     const gas = "300000000000000";
@@ -175,6 +176,11 @@ const StakeModal = ({
       return;
     }
 
+    if (!tokenMetadata) {
+      console.error("Token metadata not found");
+      return;
+    }
+
     let transactions: Transaction[] = [];
 
     let _shares = toNonDivisibleNumber(tokenMetadata.decimals, amount);
@@ -191,7 +197,7 @@ const StakeModal = ({
       transactions.push(contractStorageOnTokenTx);
     }
 
-    let stakingTx = stakeTx(tokenMetadata.address, _shares, farm?.farm_id);
+    let stakingTx = stakeTx(tokenMetadata.address, _shares, farm.farm_id);
     transactions.push(stakingTx);
 
     try {
@@ -234,7 +240,7 @@ const StakeModal = ({
   };
 
   useEffect(() => {
-    if (farm?.staking_token) {
+    if (farm.staking_token) {
       getMetadata();
     }
   }, [provider, farm]);
