@@ -1,9 +1,50 @@
 pub mod view;
 
+use std::str::FromStr;
+use std::sync::LazyLock;
+
 use near_contract_standards::fungible_token::Balance;
 use near_sdk::collections::UnorderedMap;
 use near_sdk::json_types::U128;
 use near_sdk::{env, near, AccountId, Gas, NearToken, PanicOnDefault, Promise, PromiseOrValue};
+use schemars::gen::SchemaGenerator;
+use schemars::schema::Schema;
+use schemars::JsonSchema;
+use uint::construct_uint;
+
+construct_uint! {
+    #[near(serializers=[borsh])]
+    pub struct U256(4);
+}
+
+impl near_sdk::serde::Serialize for U256 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: near_sdk::serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> near_sdk::serde::Deserialize<'de> for U256 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: near_sdk::serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        U256::from_str(&s).map_err(near_sdk::serde::de::Error::custom)
+    }
+}
+
+impl JsonSchema for U256 {
+    fn schema_name() -> String {
+        "U256".to_string()
+    }
+
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        String::json_schema(gen)
+    }
+}
 
 // Constants for gas and deposits.
 const GAS_FOR_FT_TRANSFER: Gas = Gas::from_tgas(50);
@@ -11,7 +52,7 @@ const MSG_ADD_REWARD: &str = "ADD_REWARD";
 const MSG_STAKE: &str = "STAKE";
 
 // A multiplier to track rewards with high precision.
-const ACC_REWARD_MULTIPLIER: u128 = 1_000_000_000_000;
+static ACC_REWARD_MULTIPLIER: LazyLock<U256> = LazyLock::new(|| U256::exp10(38));
 
 #[near(serializers=[borsh])]
 pub enum StorageKey {
@@ -48,7 +89,7 @@ pub struct FarmParams {
     pub last_distribution: u64,
     pub total_staked: u128,
     /// Scaled by ACC_REWARD_MULTIPLIER.
-    pub reward_per_share: Vec<u128>,
+    pub reward_per_share: Vec<U256>,
     pub lockup_period: u64,
     /// Tracks the remaining reward tokens available for distribution.
     pub remaining_reward: Vec<u128>,
@@ -60,7 +101,8 @@ pub struct FarmParams {
 pub struct StakeInfo {
     pub amount: u128,
     pub lockup_end: u64,
-    pub reward_debt: Vec<u128>,
+    /// Scaled by ACC_REWARD_MULTIPLIER.
+    pub reward_debt: Vec<U256>,
     pub accrued_rewards: Vec<u128>,
 }
 
@@ -79,8 +121,8 @@ impl FarmingContract {
     pub fn new() -> Self {
         assert!(!env::state_exists(), "Already initialized");
         Self {
-            farms: UnorderedMap::new(b"farms".to_vec()),
-            stakes: UnorderedMap::new(b"stakes".to_vec()),
+            farms: UnorderedMap::new(b"farms-v2".to_vec()),
+            stakes: UnorderedMap::new(b"stakes-v2".to_vec()),
             farm_count: 0,
             storage_deposits: UnorderedMap::new(b"storage_deposits".to_vec()),
         }
@@ -89,7 +131,7 @@ impl FarmingContract {
     fn estimate_farm_storage(num_rewards: usize) -> u64 {
         let overhead = 40;
         let base_bytes = 8 + 8 + 8 + 16 + 8;
-        let reward_per_share_bytes = 16 * (num_rewards as u64);
+        let reward_per_share_bytes = 32 * (num_rewards as u64);
         let reward_per_session_bytes = 16 * (num_rewards as u64);
 
         let staking_token_bytes = 32;
@@ -113,7 +155,7 @@ impl FarmingContract {
         let overhead_key = 40;
         let amount_bytes = 16;
         let lockup_end_bytes = 8;
-        let reward_debt_bytes = 16 * (num_rewards as u64);
+        let reward_debt_bytes = 32 * (num_rewards as u64);
         let accrued_rewards_bytes = 16 * (num_rewards as u64);
 
         overhead_key + amount_bytes + lockup_end_bytes + reward_debt_bytes + accrued_rewards_bytes
@@ -186,7 +228,7 @@ impl FarmingContract {
 
         let mut rps = Vec::with_capacity(num_rewards);
         for _ in 0..num_rewards {
-            rps.push(0_u128);
+            rps.push(U256::zero());
         }
 
         let mut rpsession_values = vec![];
@@ -268,8 +310,8 @@ impl FarmingContract {
             };
             if reward_to_distribute > 0 {
                 // Use the multiplier to update reward per share.
-                let inc =
-                    reward_to_distribute.saturating_mul(ACC_REWARD_MULTIPLIER) / farm.total_staked;
+                let inc = U256::from(reward_to_distribute).saturating_mul(*ACC_REWARD_MULTIPLIER)
+                    / U256::from(farm.total_staked);
                 farm.reward_per_share[i] = farm.reward_per_share[i].saturating_add(inc);
                 // Deduct the distributed reward from the remaining pool.
                 farm.remaining_reward[i] =
@@ -300,7 +342,6 @@ impl FarmingContract {
         msg: String,
     ) -> PromiseOrValue<U128> {
         let token_in = env::predecessor_account_id();
-        let sender = sender_id.into();
 
         let parts: Vec<&str> = msg.split(':').collect();
         if parts.len() < 2 {
@@ -312,11 +353,11 @@ impl FarmingContract {
 
         match action {
             MSG_STAKE => {
-                self.stake_tokens(farm_id, token_in, amount.0, &sender);
+                self.stake_tokens(farm_id, token_in, amount.0, &sender_id);
                 PromiseOrValue::Value(U128(0))
             }
             MSG_ADD_REWARD => {
-                self.add_reward(farm_id, token_in, amount.0, &sender);
+                self.add_reward(farm_id, token_in, amount.0, &sender_id);
                 PromiseOrValue::Value(U128(0))
             }
             _ => PromiseOrValue::Value(amount),
@@ -359,8 +400,9 @@ impl FarmingContract {
                         potential_reward
                     };
                     if reward_to_distribute > 0 {
-                        let inc = reward_to_distribute.saturating_mul(ACC_REWARD_MULTIPLIER)
-                            / sim.total_staked;
+                        let inc = U256::from(reward_to_distribute)
+                            .saturating_mul(*ACC_REWARD_MULTIPLIER)
+                            / U256::from(sim.total_staked);
                         sim.reward_per_share[i] = sim.reward_per_share[i].saturating_add(inc);
                         sim.remaining_reward[i] =
                             sim.remaining_reward[i].saturating_sub(reward_to_distribute);
@@ -411,7 +453,7 @@ impl FarmingContract {
         let mut stake_info = self.stakes.get(&stake_key).unwrap_or_else(|| StakeInfo {
             amount: 0,
             lockup_end: env::block_timestamp() + farm.lockup_period,
-            reward_debt: vec![0; farm.reward_tokens.len()],
+            reward_debt: vec![U256::zero(); farm.reward_tokens.len()],
             accrued_rewards: vec![0; farm.reward_tokens.len()],
         });
 
@@ -452,7 +494,8 @@ impl FarmingContract {
     fn calculate_pending(&self, farm: &FarmParams, stake_info: &StakeInfo, i: usize) -> u128 {
         let diff = farm.reward_per_share[i].saturating_sub(stake_info.reward_debt[i]);
         // Unscale the pending reward.
-        stake_info.amount.saturating_mul(diff) / ACC_REWARD_MULTIPLIER
+        u128::try_from(U256::from(stake_info.amount).saturating_mul(diff) / *ACC_REWARD_MULTIPLIER)
+            .unwrap()
     }
 
     #[payable]
@@ -791,7 +834,10 @@ mod tests {
         // With 2 sessions and 100 tokens per session distributed over 100 staked tokens,
         // the raw reward_per_share should have increased by 2 * ACC_REWARD_MULTIPLIER.
         // We check the unscaled value.
-        assert_eq!(farm.reward_per_share[0] / ACC_REWARD_MULTIPLIER, 2);
+        assert_eq!(
+            U256::from(farm.reward_per_share[0]) / *ACC_REWARD_MULTIPLIER,
+            U256::from(2)
+        );
 
         // after claim => accrued rewards should be 0.
         let stake_key = (accounts(0), farm_id);
@@ -898,7 +944,7 @@ mod tests {
 
         let farm = contract.farms.get(&farm_id).unwrap();
         // No sessions have elapsed so reward_per_share should be 0.
-        assert_eq!(farm.reward_per_share[0], 0);
+        assert_eq!(farm.reward_per_share[0], U256::zero());
     }
 
     #[test]

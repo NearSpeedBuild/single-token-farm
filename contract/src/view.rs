@@ -11,7 +11,7 @@ pub struct FarmView {
     pub start_at_sec: u64,
     pub last_distribution_sec: u64,
     pub total_staked: U128,
-    pub reward_per_share: Vec<U128>,
+    pub reward_per_share: Vec<U256>,
     pub lockup_period_sec: u64,
     pub remaining_reward: Vec<U128>,
     pub status: FarmStatus,
@@ -33,7 +33,7 @@ impl From<(&FarmParams, u64)> for FarmView {
 
             total_staked: U128(farm.total_staked),
 
-            reward_per_share: farm.reward_per_share.iter().map(|v| U128(*v)).collect(),
+            reward_per_share: farm.reward_per_share.clone(),
 
             lockup_period_sec: farm.lockup_period / 1_000_000_000,
             remaining_reward: farm.remaining_reward.iter().map(|v| U128(*v)).collect(),
@@ -47,7 +47,7 @@ pub struct StakeInfoView {
     pub farm_id: u64,
     pub amount: U128,
     pub lockup_end_sec: u64,
-    pub reward_debt: Vec<U128>,
+    pub reward_debt: Vec<U256>,
     pub accrued_rewards: Vec<U128>,
     pub reward_tokens: Vec<AccountId>,
 }
@@ -88,9 +88,12 @@ impl FarmingContract {
                     .iter()
                     .enumerate()
                     .map(|(i, &val)| {
-                        let pending = info.amount.saturating_mul(
-                            sim_farm.reward_per_share[i].saturating_sub(info.reward_debt[i]),
-                        ) / ACC_REWARD_MULTIPLIER;
+                        let pending = u128::try_from(
+                            U256::from(info.amount).saturating_mul(
+                                sim_farm.reward_per_share[i].saturating_sub(info.reward_debt[i]),
+                            ) / *ACC_REWARD_MULTIPLIER,
+                        )
+                        .unwrap();
                         U128(val.saturating_add(pending))
                     })
                     .collect();
@@ -98,7 +101,7 @@ impl FarmingContract {
                     farm_id,
                     amount: U128(info.amount),
                     lockup_end_sec: info.lockup_end / 1_000_000_000,
-                    reward_debt: info.reward_debt.iter().map(|v| U128(*v)).collect(),
+                    reward_debt: info.reward_debt,
                     accrued_rewards: updated_accrued,
                     reward_tokens: farm.reward_tokens.clone(),
                 });
@@ -130,10 +133,13 @@ impl FarmingContract {
                             .iter()
                             .enumerate()
                             .map(|(i, &val)| {
-                                let pending = stake_info.amount.saturating_mul(
-                                    sim_farm.reward_per_share[i]
-                                        .saturating_sub(stake_info.reward_debt[i]),
-                                ) / ACC_REWARD_MULTIPLIER;
+                                let pending = u128::try_from(
+                                    U256::from(stake_info.amount).saturating_mul(
+                                        sim_farm.reward_per_share[i]
+                                            .saturating_sub(stake_info.reward_debt[i]),
+                                    ) / *ACC_REWARD_MULTIPLIER,
+                                )
+                                .unwrap();
                                 U128(val.saturating_add(pending))
                             })
                             .collect();
@@ -141,7 +147,7 @@ impl FarmingContract {
                             farm_id,
                             amount: U128(stake_info.amount),
                             lockup_end_sec: stake_info.lockup_end / 1_000_000_000,
-                            reward_debt: stake_info.reward_debt.iter().map(|v| U128(*v)).collect(),
+                            reward_debt: stake_info.reward_debt,
                             accrued_rewards: updated_accrued,
                             reward_tokens: farm.reward_tokens.clone(),
                         });
