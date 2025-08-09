@@ -10,8 +10,8 @@ export const rpcData: DefaultRPCType[] =
   nearNetwork.toLowerCase() === "mainnet"
     ? [
         {
-          name: "Intear Public RPC",
-          url: "https://rpc.intear.tech",
+          name: "Intear RPC",
+          url: "https://rpc.intea.rs",
           ping: 0,
         },
         {
